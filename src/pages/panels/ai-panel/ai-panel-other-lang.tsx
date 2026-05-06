@@ -54,7 +54,8 @@ const AiPanelForOtherLang = ({
   selectedLang,
   currentBlock,
   fallbackLang,
-  abortController,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  abortController: _abortController,
   setAbortController,
   setCurrentBlock,
   selectedModel,

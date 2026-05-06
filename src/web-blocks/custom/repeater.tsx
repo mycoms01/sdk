@@ -18,7 +18,7 @@ export type RepeaterProps = {
 };
 
 export const Repeater = (props: ChaiBlockComponentProps<RepeaterProps>) => {
-  const { children, tag, styles, blockProps, $loading } = props;
+  const { children, tag, styles, blockProps } = props;
   const { pagination, inBuilder } = props;
   let items = children;
   if (isEmpty(items) && inBuilder) {
@@ -30,28 +30,14 @@ export const Repeater = (props: ChaiBlockComponentProps<RepeaterProps>) => {
   }
 
   if (tag === "none") {
-    return $loading && inBuilder
-      ? Array.from({ length: 2 }).map((_, i) => (
-          <div key={i} className="animate-pulse rounded-md bg-primary/10 p-5">
-            <div className="h-6 w-1/2 rounded-md bg-primary/10"></div>
-            <div className="mt-2 h-4 w-1/2 rounded-md bg-primary/10"></div>
-          </div>
-        ))
-      : items;
+    return items;
   }
   return (
     <>
       {React.createElement(
         tag,
         { ...blockProps, ...styles },
-        $loading && inBuilder
-          ? Array.from({ length: 2 }).map((_, i) => (
-              <div key={i} className="animate-pulse rounded-md bg-primary/10 p-5">
-                <div className="h-6 w-1/2 rounded-md bg-primary/10"></div>
-                <div className="mt-2 h-4 w-1/2 rounded-md bg-primary/10"></div>
-              </div>
-            ))
-          : items,
+        items,
       )}
       {pagination && (
         <PaginationWrapper
@@ -163,7 +149,7 @@ export const RepeaterConfig: Omit<ChaiBlockConfig, "component"> = {
       },
     ],
   }),
-  canAcceptBlock: (type: string) => type === "Pagination",
+  canAcceptBlock: () => true,
 };
 
 export type RepeaterItemProps = {

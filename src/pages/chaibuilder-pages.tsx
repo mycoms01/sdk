@@ -1,5 +1,4 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { useAtom } from "jotai";
 import { cloneDeep, get, pick } from "lodash-es";
 import { Loader } from "lucide-react";
@@ -287,17 +286,11 @@ const ChaiWebsiteBuilder = (props: ChaiWebsiteBuilderProps) => {
   // if not, create a new query client and wrap the builder with it
   // else rely on the parent app to provide the query client
   if (get(props, "hasReactQueryProvider", false) === true)
-    return (
-      <>
-        <BuilderWithAccessCheck {...props} />
-        <ReactQueryDevtools />
-      </>
-    );
+    return <BuilderWithAccessCheck {...props} />;
 
   return (
     <QueryClientProvider client={queryClient}>
       <BuilderWithAccessCheck {...props} />
-      <ReactQueryDevtools />
     </QueryClientProvider>
   );
 };

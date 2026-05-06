@@ -45,7 +45,6 @@ const LEAF_BLOCK_TYPES = [
   "CustomHTML",
   "TextArea",
   "Divider",
-  "Repeater",
   "Video",
 ];
 
