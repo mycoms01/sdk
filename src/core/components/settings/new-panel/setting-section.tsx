@@ -49,11 +49,11 @@ const NestedOptions = ({ heading, items }: any) => {
         </div>
       </summary>
       <div className="p-2">
-        {items.map((item: any) => {
+        {items.map((item: any, index: number) => {
           if (item.styleType === "multiple") {
-            return <MultipleChoices key={item.label} {...item} />;
+            return <MultipleChoices key={`${item.label || index}-${index}`} {...item} />;
           }
-          return <BlockStyle key={item.label} {...item} />;
+          return <BlockStyle key={`${item.label || index}-${index}`} {...item} />;
         })}
       </div>
     </details>
@@ -96,18 +96,18 @@ export const StylingGroup = ({ section, showAccordian }: any) => {
             </div>
           </AccordionTrigger>
           <AccordionContent className="py-2">
-            {section.items.map((item: Record<string, any>) => {
+            {section.items.map((item: Record<string, any>, index: number) => {
               if (has(item, "component")) {
-                return React.createElement(item.component, { key: item.label });
+                return React.createElement(item.component, { key: `${item.label || index}-${index}` });
               }
               if (!has(item, "styleType")) {
-                return <BlockStyle key={item.label + "block-style"} {...(item as any)} />;
+                return <BlockStyle key={`${item.label || index}-block-style-${index}`} {...(item as any)} />;
               }
               if (item.styleType === "multiple") {
-                return <MultipleChoices key={item.label + "multiple-choices"} {...(item as any)} />;
+                return <MultipleChoices key={`${item.label || index}-multiple-choices-${index}`} {...(item as any)} />;
               }
               if (item.styleType === "accordion" && matchCondition(item?.conditions)) {
-                return <NestedOptions key={item.label + "nested-options"} {...(item as any)} />;
+                return <NestedOptions key={`${item.label || index}-nested-options-${index}`} {...(item as any)} />;
               }
               return null;
             })}
@@ -117,16 +117,16 @@ export const StylingGroup = ({ section, showAccordian }: any) => {
         <div className="py-2">
           {section.items.map((item: Record<string, any>, index: number) => {
             if (has(item, "component")) {
-              return React.createElement(item.component, { key: item.label });
+              return React.createElement(item.component, { key: `${item.label || index}-${index}` });
             }
             if (!has(item, "styleType")) {
-              return <BlockStyle key={item.label + "block-style" + index} {...(item as any)} />;
+              return <BlockStyle key={`${item.label || index}-block-style-${index}`} {...(item as any)} />;
             }
             if (item.styleType === "multiple") {
-              return <MultipleChoices key={item.label + "multiple-choices" + index} {...(item as any)} />;
+              return <MultipleChoices key={`${item.label || index}-multiple-choices-${index}`} {...(item as any)} />;
             }
             if (item.styleType === "accordion" && matchCondition((item as any)?.conditions)) {
-              return <NestedOptions key={item.label + "nested-options" + index} {...(item as any)} />;
+              return <NestedOptions key={`${item.label || index}-nested-options-${index}`} {...(item as any)} />;
             }
             return null;
           })}

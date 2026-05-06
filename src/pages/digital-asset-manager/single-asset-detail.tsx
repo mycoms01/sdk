@@ -186,8 +186,8 @@ export const SingleAssetDetail = ({ assetId, onBack, onEdit, onSave, isSaving }:
                   value: asset.url,
                   copyable: true,
                 },
-              ].map((item) => (
-                <div key={item.label} className="flex items-center gap-2">
+              ].map((item, index) => (
+                <div key={`${item.label || index}-${index}`} className="flex items-center gap-2">
                   <Label className="w-1/4 w-max px-2 text-left font-normal text-gray-700">{item.label}</Label>:
                   <div className="flex items-center gap-2">
                     <div

@@ -40,6 +40,8 @@ export interface ChaiBlockConfig {
   category?: string;
   hidden?: boolean | ((parentType?: string) => boolean);
   icon?: React.ReactNode | React.ComponentType;
+  component?: React.ComponentType<any>;
+  canHaveChildren?: boolean;
 
   dataProviderMode?: "live" | "mock";
   dataProviderDependencies?: string[];

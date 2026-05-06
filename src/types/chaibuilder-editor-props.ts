@@ -304,4 +304,9 @@ export interface ChaiBuilderEditorProps {
    * Screen to small message component
    */
   smallScreenComponent?: ReactComponentType;
+
+  /**
+   * Media upload handler
+   */
+  mediaUploadHandler?: (file: File) => Promise<string | Error>;
 }

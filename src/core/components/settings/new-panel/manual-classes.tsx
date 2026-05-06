@@ -1,12 +1,13 @@
 import { CheckIcon, CopyIcon, Cross2Icon, PlusIcon } from "@radix-ui/react-icons";
 import { useAtomValue } from "jotai";
 import { first, get, isEmpty, isFunction, map } from "lodash-es";
-import { useMemo, useRef, useState } from "react";
-import Autosuggest from "react-autosuggest";
+import { useMemo, useRef, useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { chaiDesignTokensAtom } from "~/atoms/builder";
 import { Button } from "~/components/ui/button";
+import { Command, CommandGroup, CommandItem, CommandList } from "~/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "~/components/ui/tooltip";
 import { DesignTokensIcon } from "~/core/components/sidepanels/panels/design-tokens/DesignTokensIcon";
 import { useFuseSearch } from "~/core/constants/CLASSES_LIST";
@@ -44,6 +45,8 @@ export function ManualClasses({
   const removeClassesFromBlocks = useRemoveClassesFromBlocks();
   const [selectedIds] = useSelectedBlockIds();
   const [newCls, setNewCls] = useState("");
+  const [open, setOpen] = useState(false);
+  const [suggestions, setSuggestions] = useState<any[]>([]);
   const designTokens = useAtomValue(chaiDesignTokensAtom);
   const prop = first(styleBlock)?.prop as string;
   const { classes: classesString } = getSplitChaiClasses(get(block, prop, ""));
@@ -166,9 +169,8 @@ export function ManualClasses({
     setNewCls("");
   };
 
-  const [suggestions, setSuggestions] = useState<any[]>([]);
   const designTokensEnabled = useBuilderProp("flags.designTokens", true);
-  const handleSuggestionsFetchRequested = ({ value }: any) => {
+  const updateSuggestions = (value: string) => {
     const search = value.trim().toLowerCase();
     const matches = search.match(/.+:/g);
     let classMatches = [];
@@ -212,64 +214,27 @@ export function ManualClasses({
 
     // Combine design tokens with regular class suggestions, design tokens first
     const allSuggestions = [...designTokenSuggestions, ...map(classMatches, "item")];
-    return setSuggestions(allSuggestions);
+    setSuggestions(allSuggestions);
   };
 
-  const handleSuggestionsClearRequested = () => {
-    setSuggestions([]);
+  useEffect(() => {
+    if (open) {
+      updateSuggestions(newCls);
+    }
+  }, [newCls, open]);
+
+  const handleSelectSuggestion = (suggestionValue: string) => {
+    isSelectingSuggestion.current = true;
+    const storageFormat = convertToStorageFormat(suggestionValue);
+    const fullClsNames = [storageFormat];
+    if (from === "designToken") {
+      if (isFunction(onAddNew)) onAddNew(fullClsNames);
+    } else {
+      addClassesToBlocks(selectedIds, fullClsNames, true);
+    }
+    setNewCls("");
+    setOpen(false);
   };
-
-  const getSuggestionValue = (suggestion: any) => {
-    return suggestion.name; // Always return the display name
-  };
-
-  const renderSuggestion = (suggestion: any) => (
-    <div className="flex items-center gap-2 rounded-md p-1">
-      {suggestion.isDesignToken && <DesignTokensIcon className="h-4 w-4 text-gray-600" />}
-      <span>{suggestion.name}</span>
-    </div>
-  );
-
-  const inputProps = useMemo(
-    () => ({
-      ref: inputRef,
-      autoComplete: "off",
-      autoCorrect: "off",
-      autoCapitalize: "off",
-      spellCheck: false,
-      placeholder: `${showDesignTokenSuggestions ? t("Enter classes separated by space or design tokens") : t("Enter classes separated by space")}`,
-      value: newCls,
-      onFocus: (e: any) => {
-        setTimeout(() => {
-          if (e.target) e.target.select();
-        }, 0);
-      },
-      onKeyDown: (e: any) => {
-        if (e.key === "Enter" && newCls.trim() !== "") {
-          if (isSelectingSuggestion.current) {
-            isSelectingSuggestion.current = false;
-            return;
-          }
-          e.preventDefault();
-          addNewClasses();
-        }
-        if (e.key === "Tab" && suggestions.length > 0) {
-          e.preventDefault();
-          // Simulate ArrowDown to highlight
-          const downEvent = new KeyboardEvent("keydown", {
-            key: "ArrowDown",
-            code: "ArrowDown",
-            keyCode: 40,
-            bubbles: true,
-          });
-          e.target.dispatchEvent(downEvent);
-        }
-      },
-      onChange: (_e: any, { newValue }: any) => setNewCls(newValue),
-      className: `w-full rounded-md text-xs px-2 hover:outline-0 bg-background border-border ${from === "default" ? "py-1" : "py-1.5"}`,
-    }),
-    [newCls, t, inputRef, suggestions.length],
-  );
 
   const handleEditClass = (clsToRemove: string) => {
     const fullClsNames: string[] = editingClass
@@ -320,34 +285,65 @@ export function ManualClasses({
       </div>
       <div className={"relative flex items-center gap-x-3"}>
         <div className="relative flex w-full items-center gap-x-3">
-          <Autosuggest
-            suggestions={suggestions}
-            onSuggestionsFetchRequested={handleSuggestionsFetchRequested}
-            onSuggestionsClearRequested={handleSuggestionsClearRequested}
-            getSuggestionValue={getSuggestionValue}
-            renderSuggestion={renderSuggestion}
-            inputProps={inputProps}
-            onSuggestionSelected={(_e, { suggestionValue }) => {
-              isSelectingSuggestion.current = true;
-              const storageFormat = convertToStorageFormat(suggestionValue);
-              const fullClsNames = [storageFormat];
-              if (from === "designToken") {
-                if (isFunction(onAddNew)) onAddNew(fullClsNames);
-              } else {
-                addClassesToBlocks(selectedIds, fullClsNames, true);
-              }
-              setNewCls("");
-            }}
-            containerProps={{
-              className: "relative h-8 w-full gap-y-1 py-1 border-border text-xs",
-            }}
-            theme={{
-              suggestion: "bg-transparent",
-              suggestionHighlighted: "!bg-gray-300 dark:!bg-gray-800 cursor-pointer",
-              suggestionsContainerOpen:
-                "absolute bg-background no-scrollbar z-50 max-h-[230px] overflow-y-auto w-full  border border-border rounded-md",
-            }}
-          />
+          <Popover open={open && suggestions.length > 0} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+              <input
+                ref={inputRef}
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
+                placeholder={`${showDesignTokenSuggestions ? t("Enter classes separated by space or design tokens") : t("Enter classes separated by space")}`}
+                value={newCls}
+                onFocus={(e: any) => {
+                  setOpen(true);
+                  setTimeout(() => {
+                    if (e.target) e.target.select();
+                  }, 0);
+                }}
+                onKeyDown={(e: any) => {
+                  if (e.key === "Enter" && newCls.trim() !== "") {
+                    if (isSelectingSuggestion.current) {
+                      isSelectingSuggestion.current = false;
+                      return;
+                    }
+                    e.preventDefault();
+                    addNewClasses();
+                    setOpen(false);
+                  }
+                  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                    setOpen(true);
+                  }
+                } }
+                onChange={(e) => {
+                  setNewCls(e.target.value);
+                  setOpen(true);
+                }}
+                className={`w-full rounded-md border border-border bg-background px-2 text-xs hover:outline-0 ${from === "default" ? "py-1" : "py-1.5"}`}
+              />
+            </PopoverTrigger>
+            <PopoverContent
+              className="no-scrollbar z-50 max-h-[230px] w-[var(--radix-popover-trigger-width)] overflow-y-auto p-0"
+              align="start"
+              onOpenAutoFocus={(e) => e.preventDefault()}>
+              <Command>
+                <CommandList className="max-h-[230px]">
+                  <CommandGroup>
+                    {suggestions.map((suggestion, index) => (
+                      <CommandItem
+                        key={`${suggestion.name}-${index}`}
+                        value={suggestion.name}
+                        onSelect={() => handleSelectSuggestion(suggestion.name)}
+                        className="flex items-center gap-2 rounded-md p-1 cursor-pointer">
+                        {suggestion.isDesignToken && <DesignTokensIcon className="h-4 w-4 text-gray-600" />}
+                        <span>{suggestion.name}</span>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
         </div>
         <Button
           variant="outline"
