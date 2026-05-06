@@ -1,6 +1,6 @@
 import { ChevronLeftIcon, ChevronRightIcon, IdCardIcon, LoopIcon } from "@radix-ui/react-icons";
 import { t } from "i18next";
-import { startsWith } from "lodash-es";
+import { startCase, startsWith } from "lodash-es";
 import React from "react";
 import { Button } from "~/components/ui/button";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "~/components/ui/command";
@@ -23,6 +23,7 @@ type Option = {
 };
 
 const PathDropdown = ({ data, onSelect, dataType }: NestedPathSelectorProps) => {
+  const collections = useBuilderProp("collections", []) as { id: string; name?: string; slug?: string }[];
   const [currentPath, setCurrentPath] = React.useState<string[]>([]);
   const [currentData, setCurrentData] = React.useState<Record<string, any>>(data);
 
@@ -71,6 +72,24 @@ const PathDropdown = ({ data, onSelect, dataType }: NestedPathSelectorProps) => 
       });
   }, [currentData, dataType]);
 
+  const getRepeaterCollectionLabel = React.useCallback(
+    (key: string) => {
+      const repeaterKey = key.replace(REPEATER_PREFIX, "");
+      const rawCollectionId = repeaterKey.startsWith(COLLECTION_PREFIX)
+        ? repeaterKey.replace(COLLECTION_PREFIX, "").split("/")[0]
+        : "";
+      if (!rawCollectionId) return t("Repeater Data");
+      const matchedCollection = collections.find(
+        (collection) =>
+          collection.id === rawCollectionId || collection.slug === rawCollectionId || collection.name === rawCollectionId,
+      );
+      if (matchedCollection?.name) return matchedCollection.name;
+      if (matchedCollection?.slug) return matchedCollection.slug;
+      return startCase(rawCollectionId.replace(/[-_]/g, " "));
+    },
+    [collections],
+  );
+
   return (
     <Command className="fields-command">
       <CommandInput className="border-none" placeholder="Search..." />
@@ -97,7 +116,7 @@ const PathDropdown = ({ data, onSelect, dataType }: NestedPathSelectorProps) => 
                   <IdCardIcon />
                 ) : null}
                 {startsWith(option.key, REPEATER_PREFIX)
-                  ? t("Repeater Data")
+                  ? getRepeaterCollectionLabel(option.key)
                   : startsWith(option.key, COLLECTION_PREFIX)
                     ? option.key.replace(COLLECTION_PREFIX, "")
                     : option.key}

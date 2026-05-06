@@ -1,10 +1,11 @@
-import { first, get, isEmpty, startsWith } from "lodash-es";
-import { useCallback, useMemo } from "react";
+import { first, get, has, isArray, isEmpty, isObject, startsWith } from "lodash-es";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePageExternalData } from "~/atoms/builder";
 import { NestedPathSelector } from "~/core/components/nested-path-selector";
 import { COLLECTION_PREFIX, REPEATER_PREFIX } from "~/core/constants/STRINGS";
 import { useBuilderProp } from "~/hooks/use-builder-prop";
 import { useSelectedBlock, useSelectedBlockHierarchy } from "~/hooks/use-selected-blockIds";
+import { isRepeaterBlock } from "../utils/block-utils";
 
 export const DataBindingSelector = ({
   schema,
@@ -17,21 +18,169 @@ export const DataBindingSelector = ({
   id: string;
   formData: any;
 }) => {
+  const [fallbackCollections, setFallbackCollections] = useState<any[]>([]);
   const pageExternalData = usePageExternalData();
   const dataBindingEnabled = useBuilderProp("flags.dataBinding", true);
+  const collections = useBuilderProp("collections", []) as any[];
   const hierarchy = useSelectedBlockHierarchy();
   const selectedBlock = useSelectedBlock();
-  const repeaterKey = useMemo(() => {
+  const repeaterBlock = useMemo(() => hierarchy.find((block) => isRepeaterBlock(block)), [hierarchy]);
+  const repeaterCollectionSlug = useMemo(() => get(repeaterBlock, "collectionSlug", ""), [repeaterBlock]);
+
+  useEffect(() => {
+    if (!repeaterCollectionSlug || typeof window === "undefined") {
+      setFallbackCollections([]);
+      return;
+    }
+
+    const getProjectIdFromUrl = () => {
+      const params = new URLSearchParams(window.location.search);
+      const queryProjectId = params.get("projectId");
+      if (queryProjectId) return queryProjectId;
+      const pathMatch = window.location.pathname.match(/\/projects\/([^/]+)\//);
+      return pathMatch?.[1] ?? null;
+    };
+
+    const projectId = getProjectIdFromUrl();
+    if (!projectId) {
+      setFallbackCollections([]);
+      return;
+    }
+
+    let isActive = true;
+    fetch(`/api/collections?projectId=${projectId}`)
+      .then((response) => response.json())
+      .then((payload) => {
+        if (!isActive || !Array.isArray(payload)) return;
+        const selected = payload.find(
+          (item) => item?.slug === repeaterCollectionSlug || item?.id === repeaterCollectionSlug,
+        );
+        if (selected) setFallbackCollections(payload);
+      })
+      .catch(() => {
+        if (isActive) setFallbackCollections([]);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [repeaterCollectionSlug]);
+
+  const repeaterSourceKey = useMemo(() => {
     if (hierarchy.length === 1) return "";
-    const repeaterBlock = hierarchy.find((block) => block._type === "Repeater");
-    const repeaterKey = get(repeaterBlock, "repeaterItems", "");
-    const key = repeaterKey.replace(/\{\{(.*)\}\}/g, "$1");
-    return `${REPEATER_PREFIX}${startsWith(key, COLLECTION_PREFIX) ? `${key}/${repeaterBlock?._id}` : key}`;
-  }, [hierarchy]);
+    const repeaterItems = get(repeaterBlock, "repeaterItems", "");
+    if (typeof repeaterItems !== "string") return "";
+    return repeaterItems.replace(/^\s*\{\{\s*|\s*\}\}\s*$/g, "").trim();
+  }, [hierarchy, repeaterBlock]);
+
+  const repeaterKey = useMemo(() => {
+    if (isEmpty(repeaterSourceKey) && !repeaterCollectionSlug) return "";
+    if (!repeaterBlock?._id) return "";
+    const availableCollections = collections.length > 0 ? collections : fallbackCollections;
+
+    const getCollectionDisplayName = (collectionRef: string) => {
+      const matchedCollection = availableCollections.find(
+        (item) => item?.id === collectionRef || item?.slug === collectionRef || item?.name === collectionRef,
+      );
+      return (
+        matchedCollection?.name ||
+        matchedCollection?.label ||
+        matchedCollection?.title ||
+        matchedCollection?.slug ||
+        collectionRef
+      );
+    };
+
+    if (isEmpty(repeaterSourceKey) && repeaterCollectionSlug) {
+      const collectionDisplayName = getCollectionDisplayName(repeaterCollectionSlug);
+      const collectionKey = String(collectionDisplayName).trim();
+      return `${REPEATER_PREFIX}${COLLECTION_PREFIX}${collectionKey}`;
+    }
+
+    const key = (() => {
+      if (!startsWith(repeaterSourceKey, COLLECTION_PREFIX)) return repeaterSourceKey;
+      const collectionRef = repeaterSourceKey.replace(COLLECTION_PREFIX, "");
+      const collectionDisplayName = String(getCollectionDisplayName(collectionRef)).trim();
+      return `${COLLECTION_PREFIX}${collectionDisplayName}/${repeaterBlock?._id}`;
+    })();
+    return `${REPEATER_PREFIX}${key}`;
+  }, [repeaterBlock, repeaterSourceKey, repeaterCollectionSlug, collections, fallbackCollections]);
 
   const repeaterData = useMemo(() => {
-    return first(get(pageExternalData, repeaterKey.replace(REPEATER_PREFIX, ""), []));
-  }, [repeaterKey, pageExternalData]);
+    if (isEmpty(repeaterKey)) return undefined;
+
+    // Standard SDK repeater: find runtime row data from externalData.
+    if (!isEmpty(repeaterSourceKey)) {
+      const repeaterResolvedDataKey = repeaterKey.replace(REPEATER_PREFIX, "");
+      const candidates = [repeaterResolvedDataKey, repeaterSourceKey];
+      for (const key of candidates) {
+        const source = has(pageExternalData, key) ? get(pageExternalData, key) : get(pageExternalData, [key]);
+        if (isArray(source)) return first(source);
+        if (isObject(source)) return source;
+      }
+    }
+
+    // Custom repeater (repeaterGrid/repeaterList): build field tree from collection schema.
+    if (repeaterCollectionSlug) {
+      const availableCollections = collections.length > 0 ? collections : fallbackCollections;
+      const collection = availableCollections.find(
+        (item) => item?.id === repeaterCollectionSlug || item?.slug === repeaterCollectionSlug,
+      );
+      const directFields = get(collection, "fields", []) as any;
+      let fields: any[] = [];
+      if (Array.isArray(directFields)) {
+        fields = directFields;
+      } else if (typeof directFields === "string") {
+        try {
+          const parsed = JSON.parse(directFields);
+          fields = Array.isArray(parsed) ? parsed : [];
+        } catch {
+          fields = [];
+        }
+      }
+      const buildCollectionShape = (
+        currentFields: any[],
+        depth = 0,
+        seen = new Set<string>(),
+      ): Record<string, any> => {
+        return currentFields.reduce<Record<string, any>>((acc, field) => {
+          const key = field?.name || field?.id;
+          if (!key) return acc;
+          if (field?.type === "relation" && field?.targetCollection && depth < 2 && !seen.has(field.targetCollection)) {
+            const nextSeen = new Set(seen);
+            nextSeen.add(field.targetCollection);
+            const nestedCollection = availableCollections.find(
+              (item) => item?.slug === field.targetCollection || item?.id === field.targetCollection,
+            );
+            const nestedFieldsRaw = get(nestedCollection, "fields", []);
+            const nestedFields =
+              typeof nestedFieldsRaw === "string"
+                ? (() => {
+                    try {
+                      const parsed = JSON.parse(nestedFieldsRaw);
+                      return Array.isArray(parsed) ? parsed : [];
+                    } catch {
+                      return [];
+                    }
+                  })()
+                : Array.isArray(nestedFieldsRaw)
+                  ? nestedFieldsRaw
+                  : [];
+            acc[key] = buildCollectionShape(nestedFields, depth + 1, nextSeen);
+            return acc;
+          }
+          acc[key] = "";
+          return acc;
+        }, {});
+      };
+
+      if (fields.length > 0) {
+        return buildCollectionShape(fields);
+      }
+    }
+
+    return undefined;
+  }, [repeaterSourceKey, repeaterKey, pageExternalData, repeaterCollectionSlug, collections, fallbackCollections]);
 
   const handlePathSelect = useCallback(
     (path: string, type: "value" | "array" | "object") => {
