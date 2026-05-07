@@ -5,11 +5,21 @@ export const useAllDataProviders = () => {
   const [providers, setProviders] = useState(getChaiDataProviders());
 
   useEffect(() => {
-    // Poll for changes or just update once on mount to be safe
-    setProviders(getChaiDataProviders());
+    const handleUpdate = () => {
+      setProviders({ ...getChaiDataProviders() });
+    };
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("chai-data-provider-registered", handleUpdate);
+    }
     
-    // If we want to be fancy, we could add a custom event listener here
-    // for when a new provider is registered.
+    handleUpdate();
+
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("chai-data-provider-registered", handleUpdate);
+      }
+    };
   }, []);
 
   return useMemo(() => Object.entries(providers).map(([key, value]) => ({ key, ...(value as any) })), [providers]);
