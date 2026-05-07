@@ -87,6 +87,7 @@ export const builderProp = (options: ChaiBlockPropsSchema): ChaiBlockPropsSchema
 export const defaultChaiStyles = (classes: string) => `${STYLES_KEY},${classes}`;
 
 export * from "./register-collection.ts";
+export * from "./register-data-provider";
 export * from "./register-global-data-provider";
 export * from "./register-page-type";
 export * from "./register-partial-type";

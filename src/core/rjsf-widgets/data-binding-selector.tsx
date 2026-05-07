@@ -5,6 +5,7 @@ import { NestedPathSelector } from "~/core/components/nested-path-selector";
 import { COLLECTION_PREFIX, REPEATER_PREFIX } from "~/core/constants/STRINGS";
 import { useBuilderProp } from "~/hooks/use-builder-prop";
 import { useSelectedBlock, useSelectedBlockHierarchy } from "~/hooks/use-selected-blockIds";
+import { useAllDataProviders } from "~/hooks/use-all-data-providers";
 import { isRepeaterBlock } from "../utils/block-utils";
 
 export const DataBindingSelector = ({
@@ -182,9 +183,36 @@ export const DataBindingSelector = ({
     return undefined;
   }, [repeaterSourceKey, repeaterKey, pageExternalData, repeaterCollectionSlug, collections, fallbackCollections]);
 
+  const allProviders = useAllDataProviders();
+  const labelToKeyMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    allProviders.forEach((provider: any) => {
+      const label = typeof provider.label === "function" ? provider.label() : (provider.label || provider.key);
+      map[label] = provider.key;
+    });
+    return map;
+  }, [allProviders]);
+
+  const providersData = useMemo(() => {
+    const data: Record<string, any> = {};
+    allProviders.forEach((provider: any) => {
+      if (provider.fields) {
+        const label = typeof provider.label === "function" ? provider.label() : (provider.label || provider.key);
+        data[label] = typeof provider.fields === "function" ? provider.fields() : provider.fields;
+      }
+    });
+    return data;
+  }, [allProviders]);
+
   const handlePathSelect = useCallback(
     (path: string, type: "value" | "array" | "object") => {
-      path = !isEmpty(repeaterKey) ? path.replace(`${repeaterKey}`, "$index") : path;
+      let finalPath = path;
+      const parts = path.split(".");
+      if (parts.length > 0 && labelToKeyMap[parts[0]]) {
+        parts[0] = labelToKeyMap[parts[0]];
+        finalPath = parts.join(".");
+      }
+      path = !isEmpty(repeaterKey) ? finalPath.replace(`${repeaterKey}`, "$index") : finalPath;
       // if type is array or object, replace the current value with the new value
       if (type === "array" || type === "object") {
         onChange(`{{${path}}}`, {}, id);
@@ -242,7 +270,7 @@ export const DataBindingSelector = ({
 
         if (editor) {
           // Create the placeholder
-          const basePlaceholder = `{{${path}}}`;
+          const basePlaceholder = `{{${finalPath}}}`;
 
           // Focus the editor first to ensure we can get/set selection
           editor.commands.focus();
@@ -300,7 +328,7 @@ export const DataBindingSelector = ({
 
         // If text is selected, replace it with the shortcode
         if (hasSelection) {
-          const basePlaceholder = `{{${path}}}`;
+          const basePlaceholder = `{{${finalPath}}}`;
           const { text: placeholderWithSpacing } = addSmartSpacing(currentValue, cursorPos, basePlaceholder);
 
           const newValue = currentValue.slice(0, cursorPos) + placeholderWithSpacing + currentValue.slice(selectionEnd);
@@ -311,7 +339,7 @@ export const DataBindingSelector = ({
         }
 
         // No selection, just insert at cursor position with smart spacing
-        const basePlaceholder = `{{${path}}}`;
+        const basePlaceholder = `{{${finalPath}}}`;
         const { text: placeholderWithSpacing } = addSmartSpacing(currentValue, cursorPos, basePlaceholder);
 
         // Create the new value with smart spacing
@@ -321,8 +349,9 @@ export const DataBindingSelector = ({
         onChange(newValue, {}, id);
       }
     },
-    [id, onChange, formData, selectedBlock?._id, repeaterKey],
+    [id, onChange, formData, selectedBlock?._id, repeaterKey, labelToKeyMap],
   );
+
 
   if (!dataBindingEnabled) {
     return null;
@@ -331,6 +360,7 @@ export const DataBindingSelector = ({
     <NestedPathSelector
       data={{
         ...((repeaterData && { [repeaterKey]: repeaterData }) as any),
+        ...providersData,
         ...pageExternalData,
       }}
       onSelect={handlePathSelect}
