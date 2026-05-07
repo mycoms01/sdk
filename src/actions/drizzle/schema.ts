@@ -25,7 +25,7 @@ export const appAssets = pgTable("app_assets", {
 }, (table) => [
 	foreignKey({
 			columns: [table.app],
-			foreignColumns: [apps.id],
+			foreignColumns: [apps.appId],
 			name: "app_assets_app_fkey"
 		}),
 ]);
@@ -58,13 +58,14 @@ export const appPagesOnline = pgTable("app_pages_online", {
 }, (table) => [
 	foreignKey({
 			columns: [table.app],
-			foreignColumns: [apps.id],
+			foreignColumns: [apps.appId],
 			name: "app_pages_online_app_fkey"
 		}),
 ]);
 
-export const apps = pgTable("apps", {
+export const apps = pgTable("projects", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
+	appId: uuid("app_id"),
 	createdAt: timestamp({ withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	name: text(),
 	user: text(),
@@ -78,8 +79,9 @@ export const apps = pgTable("apps", {
 	designTokens: jsonb().default({}),
 });
 
-export const appsOnline = pgTable("apps_online", {
-	id: uuid().primaryKey().notNull(),
+export const appsOnline = pgTable("projects", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	appId: uuid("app_id"),
 	createdAt: timestamp({ withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	name: text(),
 	user: text(),
@@ -105,7 +107,7 @@ export const libraries = pgTable("libraries", {
 }, (table) => [
 	foreignKey({
 			columns: [table.app],
-			foreignColumns: [apps.id],
+			foreignColumns: [apps.appId],
 			name: "libraries_app_fkey"
 		}),
 ]);
@@ -121,7 +123,7 @@ export const appFormSubmissions = pgTable("app_form_submissions", {
 }, (table) => [
 	foreignKey({
 			columns: [table.app],
-			foreignColumns: [apps.id],
+			foreignColumns: [apps.appId],
 			name: "app_form_submissions_app_fkey"
 		}),
 ]);
@@ -154,7 +156,7 @@ export const appPages = pgTable("app_pages", {
 }, (table) => [
 	foreignKey({
 			columns: [table.app],
-			foreignColumns: [apps.id],
+			foreignColumns: [apps.appId],
 			name: "app_pages_app_fkey"
 		}),
 	foreignKey({
@@ -194,7 +196,7 @@ export const appPagesRevisions = pgTable("app_pages_revisions", {
 }, (table) => [
 	foreignKey({
 			columns: [table.app],
-			foreignColumns: [apps.id],
+			foreignColumns: [apps.appId],
 			name: "app_pages_revisions_app_fkey"
 		}),
 ]);
