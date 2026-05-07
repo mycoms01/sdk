@@ -93,7 +93,8 @@
       "types": "./dist/types.d.ts",
       "import": "./dist/types.js",
       "require": "./dist/types.cjs"
-    }
+    },
+    "./dist/*": "./dist/*"
   },
   "peerDependencies": {
     "@supabase/supabase-js": "^2.90.1",

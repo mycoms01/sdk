@@ -40,6 +40,8 @@ export const resolveExpressionIndex = (expression: string, index: number, repeat
     .replace(/\$index/g, `safeGet(it, "${repeaterKeyTrimmed}.${index}")`);
 };
 
+const ITEM_BINDING_REGEX = /\{\{item\.([^}]+)\}\}/g;
+
 export const toEtaTemplate = (template: string, index: number, repeaterKey: string): string => {
   return template.replace(BINDING_REGEX, (_, rawPath) => {
     const trimmed = rawPath.trim();
@@ -59,8 +61,19 @@ export const renderBinding = (
   index: number,
   repeaterKey: string,
 ): string => {
+  // Extract {{item.*}} tokens before Eta processes them — resolved later by SmartComponent/DataContext
+  const itemTokens: string[] = [];
+  const masked = template.replace(ITEM_BINDING_REGEX, (match) => {
+    itemTokens.push(match);
+    return `￾${itemTokens.length - 1}￿`;
+  });
   try {
-    return eta.renderString(toEtaTemplate(template, index, repeaterKey), data);
+    let result = eta.renderString(toEtaTemplate(masked, index, repeaterKey), data);
+    // Restore {{item.*}} tokens so SmartComponent can resolve them per-item
+    if (itemTokens.length > 0) {
+      result = result.replace(/￾(\d+)￿/g, (_, i) => itemTokens[Number(i)]);
+    }
+    return result;
   } catch {
     return "";
   }
@@ -82,6 +95,7 @@ export const resolveStringBinding = (
   // Check if any simple-path binding resolves to an array or image value
   for (const match of matches) {
     const trimmed = match.slice(2, -2).trim();
+    if (startsWith(trimmed, "item.")) continue; // handled by SmartComponent/DataContext
     if (!SIMPLE_PATH_REGEX.test(trimmed)) continue;
     const binding = resolveBindingPath(trimmed, index, repeaterKey);
     const bindingValue = get(data, binding);
