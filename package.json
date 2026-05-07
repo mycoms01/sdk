@@ -80,6 +80,11 @@
       "import": "./dist/utils.js",
       "require": "./dist/utils.cjs"
     },
+    "./hooks": {
+      "types": "./dist/hooks.d.ts",
+      "import": "./dist/hooks.js",
+      "require": "./dist/hooks.cjs"
+    },
     "./styles": {
       "import": "./dist/sdk.css",
       "require": "./dist/sdk.css"

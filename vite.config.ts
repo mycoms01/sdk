@@ -33,6 +33,7 @@ export default defineConfig({
         pages: resolve(__dirname, "src/pages/index.ts"),
         actions: resolve(__dirname, "src/actions/export.ts"),
         utils: resolve(__dirname, "src/utils/index.ts"),
+        hooks: resolve(__dirname, "src/hooks/external.ts"),
         "supabase-actions": resolve(__dirname, "src/express/actions/storage/index.ts"),
         types: resolve(__dirname, "src/types/index.ts"),
       },
