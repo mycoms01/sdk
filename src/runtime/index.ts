@@ -1,4 +1,4 @@
-import { each, get, intersection, isEmpty, keys, omit } from "lodash-es";
+import { cloneDeep, each, get, intersection, isEmpty, keys, omit } from "lodash-es";
 import { STYLES_KEY } from "~/core/constants/STRINGS.ts";
 import { ChaiBlockPropsSchema, ChaiBlockRJSFSchemas, ChaiBlockUiSchema } from "~/types/common.ts";
 
@@ -20,7 +20,7 @@ export const registerChaiBlockProps = (blockSchema: ChaiBlockPropsSchema): ChaiB
     throw new Error(`Runtime props are not allowed in schema: ${intersection(propsKeys, runtimeProps).join(", ")}`);
   }
 
-  const schema = get(blockSchema, "properties", {}) as Record<string, ChaiBlockPropsSchema>;
+  const schema = cloneDeep(get(blockSchema, "properties", {})) as Record<string, ChaiBlockPropsSchema>;
   const uiSchema = {} as Record<string, ChaiBlockUiSchema>;
   each(schema, (prop, key) => {
     if (!isEmpty(prop.ui)) {
@@ -29,7 +29,7 @@ export const registerChaiBlockProps = (blockSchema: ChaiBlockPropsSchema): ChaiB
     }
   });
   return {
-    schema: isEmpty(schema) ? {} : { ...omit(blockSchema, ["ui"]) },
+    schema: isEmpty(schema) ? {} : { ...omit(blockSchema, ["ui", "properties"]), properties: schema },
     uiSchema: { ...get(blockSchema, "ui", {}), ...uiSchema },
   };
 };

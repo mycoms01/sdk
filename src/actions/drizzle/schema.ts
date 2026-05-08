@@ -19,7 +19,8 @@ export const appAssets = pgTable("app_assets", {
 	width: numeric(),
 	height: numeric(),
 	createdBy: text(),
-	createdAt: timestamp({ withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	createdAt: timestamp({withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	
 	type: text(),
 	updatedAt: timestamp({ withTimezone: true, mode: 'string' }),
 }, (table) => [
@@ -65,23 +66,22 @@ export const appPagesOnline = pgTable("app_pages_online", {
 
 export const apps = pgTable("projects", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
-	appId: uuid("app_id"),
-	createdAt: timestamp({ withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	// appId: uuid("app_id"),
+	createdAt: timestamp('created_at',{ withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	name: text(),
-	user: text(),
+	// user: text(),
 	settings: jsonb().default({}),
 	theme: jsonb().default({}),
 	fallbackLang: text().default('en'),
 	languages: jsonb().default([]),
 	changes: jsonb(),
-	deletedAt: timestamp({ withTimezone: true, mode: 'string' }),
+	deletedAt: timestamp('deleted_at',{ withTimezone: true, mode: 'string' }),
 	client: uuid(),
 	designTokens: jsonb().default({}),
 });
 
-export const appsOnline = pgTable("projects", {
-	id: uuid().defaultRandom().primaryKey().notNull(),
-	appId: uuid("app_id"),
+export const appsOnline = pgTable("apps_online", {
+	id: uuid().primaryKey().notNull(),
 	createdAt: timestamp({ withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	name: text(),
 	user: text(),

@@ -196,6 +196,8 @@ export class PublishChangesAction extends ChaiBaseAction<PublishChangesActionDat
    * Clone app data from main table
    */
   private async cloneApp(): Promise<AppData> {
+
+
     const { data, error } = await safeQuery(() =>
       db.query.apps.findFirst({
         where: eq(schema.apps.id, this.appId),
